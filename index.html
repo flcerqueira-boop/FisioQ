@@ -649,7 +649,7 @@ const Dashboard = ({user,role,onLogout}) => {
         try {
           await emailjs.send("service_tm0udfi","template_hxr1raj",{
             to_name: u.name||"Profissional",
-            to_email: u.email,
+            email: u.email,
           });
           console.log("E-mail enviado para", u.email);
         } catch(emailErr){ console.error("Erro ao enviar e-mail:", emailErr); }
