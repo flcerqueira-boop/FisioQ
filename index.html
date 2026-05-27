@@ -40,6 +40,8 @@
     window.__fbReady = true;
     window.dispatchEvent(new Event("firebase-ready"));
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script>emailjs.init("Vr9itk38fpBYXI3E4");</script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:'DM Sans',sans-serif;background:#0B1E3D;color:#fff;min-height:100vh;}
@@ -641,6 +643,17 @@ const Dashboard = ({user,role,onLogout}) => {
     try {
       const {doc,setDoc} = fbFns();
       await setDoc(doc(fbDb(),"users",uid),{status:"approved"},{merge:true});
+      // Envia e-mail de aprovação
+      const u = pendingUsers.find(p=>p.id===uid);
+      if(u&&u.email){
+        try {
+          await emailjs.send("service_tm0udfi","template_hxr1raj",{
+            to_name: u.name||"Profissional",
+            to_email: u.email,
+          });
+          console.log("E-mail enviado para", u.email);
+        } catch(emailErr){ console.error("Erro ao enviar e-mail:", emailErr); }
+      }
       setPendingUsers(ps=>ps.filter(p=>p.id!==uid));
     } catch(e){ console.error(e); }
     setApprovingId(null);
@@ -819,6 +832,30 @@ const Dashboard = ({user,role,onLogout}) => {
   );
 };
 
+// ─── TELA DE PENDENTE ────────────────────────────────────────────────────────
+const PendingScreen = ({onBack}) => (
+  <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:`radial-gradient(ellipse at 30% 60%,${C.navyLight} 0%,${C.navy} 65%)`,padding:16}}>
+    <div className="fu" style={{background:C.navyMid,border:`1px solid ${C.navyLight}`,borderRadius:20,padding:36,width:"100%",maxWidth:400,textAlign:"center"}}>
+      <div style={{fontSize:56,marginBottom:16}}>⏳</div>
+      <h2 style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:22,marginBottom:12}}>Cadastro em análise</h2>
+      <p style={{color:C.gray400,fontSize:14,lineHeight:1.7,marginBottom:24}}>
+        Seu cadastro ainda não foi aprovado.<br/>
+        O administrador irá revisar sua solicitação<br/>
+        e você receberá um aviso em breve.
+      </p>
+      <div style={{background:`${C.yellow}11`,border:`1px solid ${C.yellow}33`,borderRadius:12,padding:16,marginBottom:24}}>
+        <p style={{color:C.yellow,fontSize:13,fontWeight:600,marginBottom:4}}>O que fazer agora?</p>
+        <p style={{color:C.gray400,fontSize:13,lineHeight:1.6}}>
+          Aguarde o contato do administrador.<br/>
+          Tente fazer login novamente após receber a confirmação.
+        </p>
+      </div>
+      <Btn onClick={onBack} variant="ghost" full>← Voltar ao login</Btn>
+      <p style={{color:C.gray400,fontSize:11,marginTop:20}}>Desenvolvido pelo Professor Felipe Cerqueira</p>
+    </div>
+  </div>
+);
+
 // ─── LOGIN / CADASTRO ─────────────────────────────────────────────────────────
 const Login = ({onLogin}) => {
   const [mode, setMode] = useState("login"); // login | register
@@ -862,14 +899,14 @@ const Login = ({onLogin}) => {
       const status = snap.exists() ? snap.data().status : "pending";
       if(status !== "approved"){
         await signOut(fbAuth());
-        setError("⏳ Cadastro aguardando aprovação do administrador.");
+        onLogin(null,"pending");
         setLoading(false); return;
       }
       onLogin(cred.user,"professional");
     } catch(e){
       // Erro ao verificar — bloqueia por segurança
       try{ const {signOut}=fbFns(); await signOut(fbAuth()); }catch(_){}
-      setError("⏳ Cadastro aguardando aprovação do administrador.");
+      onLogin(null,"pending");
     }
     setLoading(false);
   };
@@ -888,14 +925,33 @@ const Login = ({onLogin}) => {
         createdAt:new Date().toISOString()
       });
       await signOut(fbAuth());
-      setMode("login");
+      setMode("pending_sent");
       setEmail(""); setPass(""); setName("");
-      setTimeout(()=>setError("✅ Cadastro enviado! Aguarde a aprovação do administrador."),100);
     } catch(e){ setError(errMsg(e.code)); }
     setLoading(false);
   };
 
   const inp = {background:C.navyLight,border:`1.5px solid ${C.navyLight}`,borderRadius:10,padding:"12px 16px",color:C.white,fontSize:14,fontFamily:"DM Sans,sans-serif",width:"100%",outline:"none"};
+
+  // Tela de cadastro enviado com sucesso
+  if(mode==="pending_sent") return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:`radial-gradient(ellipse at 30% 60%,${C.navyLight} 0%,${C.navy} 65%)`,padding:16}}>
+      <div className="fu" style={{background:C.navyMid,border:`1px solid ${C.navyLight}`,borderRadius:20,padding:36,width:"100%",maxWidth:400,textAlign:"center"}}>
+        <div style={{fontSize:56,marginBottom:16}}>📬</div>
+        <h2 style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:22,marginBottom:12}}>Cadastro enviado!</h2>
+        <p style={{color:C.gray400,fontSize:14,lineHeight:1.7,marginBottom:24}}>
+          Seu cadastro foi recebido com sucesso.<br/>
+          Aguarde a aprovação do administrador.<br/>
+          Você será notificado assim que sua conta for liberada.
+        </p>
+        <div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:12,padding:14,marginBottom:24}}>
+          <p style={{color:C.orange,fontSize:13}}>⏳ Status: <strong>Aguardando aprovação</strong></p>
+        </div>
+        <Btn onClick={()=>setMode("login")} variant="ghost" full>← Voltar ao login</Btn>
+        <p style={{color:C.gray400,fontSize:11,marginTop:20}}>Desenvolvido pelo Professor Felipe Cerqueira</p>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:`radial-gradient(ellipse at 30% 60%,${C.navyLight} 0%,${C.navy} 65%)`,padding:16}}>
@@ -966,6 +1022,8 @@ const App = () => {
       </div>
     </div>
   );
+
+  if(!user && role==="pending") return <PendingScreen onBack={()=>setRole(null)}/>;
 
   return user
     ?<Dashboard user={user} role={role} onLogout={handleLogout}/>
