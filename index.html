@@ -845,20 +845,32 @@ const Login = ({onLogin}) => {
   const handleLogin = async () => {
     if(!email||!pass) return setError("Preencha e-mail e senha.");
     setLoading(true); setError("");
+    let cred = null;
     try {
       await waitForFirebase();
-      const {signInWithEmailAndPassword, doc, getDoc} = fbFns();
-      const cred = await signInWithEmailAndPassword(fbAuth(), email, pass);
-      if(cred.user.email===ADMIN_EMAIL){ onLogin(cred.user,"admin"); return; }
+      const {signInWithEmailAndPassword} = fbFns();
+      cred = await signInWithEmailAndPassword(fbAuth(), email, pass);
+    } catch(e){ setError(errMsg(e.code)); setLoading(false); return; }
+
+    // Admin entra direto
+    if(cred.user.email===ADMIN_EMAIL){ onLogin(cred.user,"admin"); setLoading(false); return; }
+
+    // Verifica aprovação — bloqueia por padrão em qualquer erro
+    try {
+      const {doc, getDoc, signOut} = fbFns();
       const snap = await getDoc(doc(fbDb(),"users",cred.user.uid));
-      if(!snap.exists()||snap.data().status==="pending"){
-        const {signOut} = fbFns();
+      const status = snap.exists() ? snap.data().status : "pending";
+      if(status !== "approved"){
         await signOut(fbAuth());
         setError("⏳ Cadastro aguardando aprovação do administrador.");
         setLoading(false); return;
       }
       onLogin(cred.user,"professional");
-    } catch(e){ setError(errMsg(e.code)); }
+    } catch(e){
+      // Erro ao verificar — bloqueia por segurança
+      try{ const {signOut}=fbFns(); await signOut(fbAuth()); }catch(_){}
+      setError("⏳ Cadastro aguardando aprovação do administrador.");
+    }
     setLoading(false);
   };
 
