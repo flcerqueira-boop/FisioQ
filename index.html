@@ -609,6 +609,9 @@ const Dashboard = ({user,role,onLogout}) => {
 
   useEffect(()=>{ loadPatients(); },[]);
 
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [approvingId, setApprovingId] = useState(null);
+
   const loadPatients = async () => {
     setLoading(true);
     try {
@@ -619,8 +622,38 @@ const Dashboard = ({user,role,onLogout}) => {
       const snap = await getDocs(q);
       const list = snap.docs.map(d=>({id:d.id,...d.data(),evals:d.data().evals||[]}));
       setPatients(list);
+      if(role==="admin") loadPendingUsers();
     } catch(e){ console.error(e); }
     setLoading(false);
+  };
+
+  const loadPendingUsers = async () => {
+    try {
+      const {collection,getDocs,query,where} = fbFns();
+      const q = query(collection(fbDb(),"users"),where("status","==","pending"));
+      const snap = await getDocs(q);
+      setPendingUsers(snap.docs.map(d=>({id:d.id,...d.data()})));
+    } catch(e){ console.error(e); }
+  };
+
+  const approveUser = async (uid) => {
+    setApprovingId(uid);
+    try {
+      const {doc,setDoc} = fbFns();
+      await setDoc(doc(fbDb(),"users",uid),{status:"approved"},{merge:true});
+      setPendingUsers(ps=>ps.filter(p=>p.id!==uid));
+    } catch(e){ console.error(e); }
+    setApprovingId(null);
+  };
+
+  const rejectUser = async (uid) => {
+    setApprovingId(uid);
+    try {
+      const {doc,setDoc} = fbFns();
+      await setDoc(doc(fbDb(),"users",uid),{status:"rejected"},{merge:true});
+      setPendingUsers(ps=>ps.filter(p=>p.id!==uid));
+    } catch(e){ console.error(e); }
+    setApprovingId(null);
   };
 
   const addPatient = async () => {
@@ -730,6 +763,40 @@ const Dashboard = ({user,role,onLogout}) => {
         </div>
       </div>
 
+
+      {/* painel admin — aprovação de cadastros */}
+      {role==="admin"&&(
+        <div style={{maxWidth:860,margin:"0 auto",padding:"0 16px 24px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+            <h2 style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:18}}>Cadastros Pendentes</h2>
+            {pendingUsers.length>0&&(
+              <span style={{background:`${C.red}22`,color:C.red,border:`1px solid ${C.red}44`,borderRadius:20,padding:"2px 10px",fontSize:12,fontWeight:700}}>{pendingUsers.length}</span>
+            )}
+          </div>
+          {pendingUsers.length===0
+            ?<div style={{background:C.navyMid,border:`1px solid ${C.navyLight}`,borderRadius:14,padding:20,textAlign:"center",color:C.gray400,fontSize:13}}>Nenhum cadastro pendente ✅</div>
+            :<div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {pendingUsers.map(u=>(
+                <div key={u.id} style={{background:C.navyMid,border:`1px solid ${C.yellow}44`,borderRadius:14,padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{width:38,height:38,borderRadius:10,background:`${C.yellow}22`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:16,color:C.yellow,flexShrink:0}}>{u.name?u.name[0]:"?"}</div>
+                    <div>
+                      <div style={{fontWeight:600,fontSize:14}}>{u.name||"Sem nome"}</div>
+                      <div style={{color:C.gray400,fontSize:12}}>{u.email}</div>
+                      <div style={{color:C.gray400,fontSize:11}}>{u.createdAt?new Date(u.createdAt).toLocaleDateString("pt-BR"):""}</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <Btn onClick={()=>rejectUser(u.id)} variant="danger" size="sm" loading={approvingId===u.id}>Recusar</Btn>
+                    <Btn onClick={()=>approveUser(u.id)} size="sm" loading={approvingId===u.id}>✅ Aprovar</Btn>
+                  </div>
+                </div>
+              ))}
+            </div>
+          }
+        </div>
+      )}
+
       {showAddModal&&(
         <Modal title="Novo paciente" onClose={()=>setShowAddModal(false)}>
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
@@ -780,10 +847,17 @@ const Login = ({onLogin}) => {
     setLoading(true); setError("");
     try {
       await waitForFirebase();
-      const {signInWithEmailAndPassword} = fbFns();
+      const {signInWithEmailAndPassword, doc, getDoc} = fbFns();
       const cred = await signInWithEmailAndPassword(fbAuth(), email, pass);
-      const role = cred.user.email===ADMIN_EMAIL?"admin":"professional";
-      onLogin(cred.user, role);
+      if(cred.user.email===ADMIN_EMAIL){ onLogin(cred.user,"admin"); return; }
+      const snap = await getDoc(doc(fbDb(),"users",cred.user.uid));
+      if(!snap.exists()||snap.data().status==="pending"){
+        const {signOut} = fbFns();
+        await signOut(fbAuth());
+        setError("⏳ Cadastro aguardando aprovação do administrador.");
+        setLoading(false); return;
+      }
+      onLogin(cred.user,"professional");
     } catch(e){ setError(errMsg(e.code)); }
     setLoading(false);
   };
@@ -794,12 +868,17 @@ const Login = ({onLogin}) => {
     setLoading(true); setError("");
     try {
       await waitForFirebase();
-      const {createUserWithEmailAndPassword,doc,setDoc} = fbFns();
+      const {createUserWithEmailAndPassword, doc, setDoc, signOut} = fbFns();
       const cred = await createUserWithEmailAndPassword(fbAuth(), email, pass);
       await setDoc(doc(fbDb(),"users",cred.user.uid),{
-        name, email, role:"professional", createdAt:new Date().toISOString()
+        name, email, role:"professional",
+        status:"pending",
+        createdAt:new Date().toISOString()
       });
-      onLogin(cred.user,"professional");
+      await signOut(fbAuth());
+      setMode("login");
+      setEmail(""); setPass(""); setName("");
+      setTimeout(()=>setError("✅ Cadastro enviado! Aguarde a aprovação do administrador."),100);
     } catch(e){ setError(errMsg(e.code)); }
     setLoading(false);
   };
