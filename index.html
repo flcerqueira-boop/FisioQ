@@ -991,19 +991,40 @@ const Login = ({onLogin}) => {
 };
 
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
+const ADMIN_EMAIL_ROOT = "flcerqueira@gmail.com";
+
 const App = () => {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState(null); // null | "admin" | "professional" | "pending"
   const [checking, setChecking] = useState(true);
 
   useEffect(()=>{
     waitForFirebase().then(()=>{
-      const {onAuthStateChanged} = fbFns();
-      onAuthStateChanged(fbAuth(), u => {
-        if(u){
-          const r = u.email==="flcerqueira@gmail.com"?"admin":"professional";
-          setUser(u); setRole(r);
-        } else { setUser(null); setRole(null); }
+      const {onAuthStateChanged, signOut, doc, getDoc} = fbFns();
+      onAuthStateChanged(fbAuth(), async (u) => {
+        if(!u){ setUser(null); setRole(null); setChecking(false); return; }
+
+        // Admin entra direto
+        if(u.email===ADMIN_EMAIL_ROOT){
+          setUser(u); setRole("admin"); setChecking(false); return;
+        }
+
+        // Verifica aprovação no Firestore
+        try {
+          const snap = await getDoc(doc(fbDb(),"users",u.uid));
+          const status = snap.exists() ? snap.data().status : "pending";
+          if(status==="approved"){
+            setUser(u); setRole("professional");
+          } else {
+            // Não aprovado — desloga e mostra tela pendente
+            await signOut(fbAuth());
+            setUser(null); setRole("pending");
+          }
+        } catch(e){
+          // Erro ao verificar — desloga por segurança
+          await signOut(fbAuth());
+          setUser(null); setRole(null);
+        }
         setChecking(false);
       });
     });
@@ -1012,6 +1033,7 @@ const App = () => {
   const handleLogout = async () => {
     const {signOut} = fbFns();
     await signOut(fbAuth());
+    setUser(null); setRole(null);
   };
 
   if(checking) return (
@@ -1023,7 +1045,7 @@ const App = () => {
     </div>
   );
 
-  if(!user && role==="pending") return <PendingScreen onBack={()=>setRole(null)}/>;
+  if(role==="pending") return <PendingScreen onBack={()=>setRole(null)}/>;
 
   return user
     ?<Dashboard user={user} role={role} onLogout={handleLogout}/>
