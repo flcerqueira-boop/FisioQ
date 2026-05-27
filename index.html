@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FisioQ — Questionários Funcionais</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'DM Sans',sans-serif;background:#0B1E3D;color:#fff;min-height:100vh;}
+    ::-webkit-scrollbar{width:4px}
+    ::-webkit-scrollbar-thumb{background:#F97316;border-radius:2px}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes scaleIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+    .fu{animation:fadeUp .35s ease both}
+    .fu2{animation:fadeUp .35s .08s ease both}
+    .fu3{animation:fadeUp .35s .16s ease both}
+    .si{animation:scaleIn .3s ease both}
+    .syne{font-family:'Syne',sans-serif;}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+// ─── CORES ───────────────────────────────────────────────────────────────────
+const C = {
+  navy:"#0B1E3D", navyMid:"#122649", navyLight:"#1A3660",
+  orange:"#F97316", orangeLight:"#FB923C",
+  white:"#FFFFFF", gray200:"#E2E8F0", gray400:"#94A3B8",
+  green:"#22C55E", red:"#EF4444", yellow:"#EAB308", purple:"#8B5CF6",
+};
+
+// ─── QUESTIONÁRIOS ────────────────────────────────────────────────────────────
+const QS = {
+  ikdc:{
+    id:"ikdc",name:"IKDC Subjetivo",region:"Joelho",color:"#3B82F6",icon:"🦵",
+    description:"International Knee Documentation Committee — sintomas, função e atividade esportiva do joelho.",
+    score_info:"0–100 pts. Quanto maior, melhor a função.",
+    sections:[
+      {title:"Sintomas",questions:[
+        {id:"q1",text:"Maior nível de atividade sem dor significativa no joelho?",options:["Atividades muito pesadas (saltar, girar)","Atividades pesadas (trabalho físico, esqui, tênis)","Atividades moderadas (corrida)","Atividades leves (caminhada)","Incapaz de qualquer atividade"],scores:[4,3,2,1,0]},
+        {id:"q2",text:"Com que frequência sente dor no joelho?",options:["Nunca","Raramente","Às vezes","Frequentemente","Constantemente"],scores:[4,3,2,1,0]},
+        {id:"q3",text:"Intensidade da dor (se houver)?",options:["Sem dor","Dor muito leve","Dor leve","Dor moderada","Dor intensa"],scores:[10,8,6,3,0]},
+        {id:"q4",text:"Com que frequência o joelho fica rígido ou inchado?",options:["Nunca","Raramente","Às vezes","Frequentemente","Constantemente"],scores:[4,3,2,1,0]},
+        {id:"q5",text:"Maior nível de atividade sem inchaço significativo?",options:["Atividades muito pesadas","Atividades pesadas","Atividades moderadas","Atividades leves","Incapaz de qualquer atividade"],scores:[4,3,2,1,0]},
+        {id:"q6",text:"O joelho travou ou emperrou no último mês?",options:["Não","Sim"],scores:[1,0]},
+      ]},
+      {title:"Atividades",questions:[
+        {id:"q7",text:"Maior nível de atividade que consegue realizar regularmente?",options:["Atividades muito pesadas","Atividades pesadas","Atividades moderadas","Atividades leves","Incapaz de qualquer atividade"],scores:[4,3,2,1,0]},
+        {id:"q8",text:"Como avalia a função atual do seu joelho?",options:["Normal","Quase normal","Anormal","Muito anormal"],scores:[4,3,2,1]},
+      ]},
+      {title:"Função",questions:[
+        {id:"q9",text:"Como era a função do joelho ANTES da lesão?",options:["Normal","Quase normal","Anormal","Muito anormal"],scores:[4,3,2,1]},
+        {id:"q10",text:"Como avalia a função atual do joelho?",options:["Normal","Quase normal","Anormal","Muito anormal"],scores:[4,3,2,1]},
+      ]},
+    ],
+    calculate:(a)=>Math.round((Object.values(a).reduce((s,v)=>s+v,0)/40)*100),
+    renderResult:(r)=><SingleScore value={r} label="Escore IKDC" color="#3B82F6" info="0–100 pts. Quanto maior, melhor a função."/>
+  },
+  womac:{
+    id:"womac",name:"WOMAC",region:"Quadril",color:C.purple,icon:"🦴",
+    description:"Western Ontario and McMaster — dor, rigidez e função física em osteoartrite.",
+    score_info:"0–96 pts. Quanto menor, melhor a função.",
+    sections:[
+      {title:"Dor (últimas 48h)",questions:[
+        {id:"d1",text:"Ao caminhar em superfície plana",options:["Nenhuma","Pouca","Moderada","Intensa","Muito intensa"],scores:[0,1,2,3,4]},
+        {id:"d2",text:"Ao subir ou descer escadas",options:["Nenhuma","Pouca","Moderada","Intensa","Muito intensa"],scores:[0,1,2,3,4]},
+        {id:"d3",text:"À noite na cama",options:["Nenhuma","Pouca","Moderada","Intensa","Muito intensa"],scores:[0,1,2,3,4]},
+        {id:"d4",text:"Ao sentar ou deitar",options:["Nenhuma","Pouca","Moderada","Intensa","Muito intensa"],scores:[0,1,2,3,4]},
+        {id:"d5",text:"Ao ficar em pé",options:["Nenhuma","Pouca","Moderada","Intensa","Muito intensa"],scores:[0,1,2,3,4]},
+      ]},
+      {title:"Rigidez",questions:[
+        {id:"r1",text:"Rigidez matinal ao acordar",options:["Nenhuma","Pouca","Moderada","Intensa","Muito intensa"],scores:[0,1,2,3,4]},
+        {id:"r2",text:"Rigidez após descanso durante o dia",options:["Nenhuma","Pouca","Moderada","Intensa","Muito intensa"],scores:[0,1,2,3,4]},
+      ]},
+      {title:"Função Física",questions:[
+        {id:"f1",text:"Descer escadas",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f2",text:"Subir escadas",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f3",text:"Levantar-se de sentado",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f4",text:"Ficar em pé",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f5",text:"Agachar-se",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f6",text:"Caminhar em superfície plana",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f7",text:"Entrar e sair do carro",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f8",text:"Fazer compras",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f9",text:"Colocar meias",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f10",text:"Tirar meias",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f11",text:"Deitar na cama",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f12",text:"Sair da cama",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f13",text:"Sentar no vaso sanitário",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f14",text:"Tarefas domésticas pesadas",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f15",text:"Tarefas domésticas leves",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f16",text:"Sentar",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+        {id:"f17",text:"Arrumar a cama",options:["Sem dificuldade","Pouca","Moderada","Muita","Extrema"],scores:[0,1,2,3,4]},
+      ]},
+    ],
+    calculate:(a)=>Object.values(a).reduce((s,v)=>s+v,0),
+    renderResult:(r)=><SingleScore value={r} label="Escore WOMAC" color={C.purple} info="0–96 pts. Quanto menor, melhor a função." invert/>
+  },
+  faam:{
+    id:"faam",name:"FAAM",region:"Tornozelo/Pé",color:C.green,icon:"🦶",
+    description:"Foot and Ankle Ability Measure — capacidade funcional do tornozelo/pé em AVDs e esporte.",
+    score_info:"AVD: 0–84 pts. Esporte: 0–32 pts. Quanto maior, melhor a função.",
+    sections:[
+      {title:"Atividades da Vida Diária",questions:[
+        {id:"a1",text:"Ficar em pé",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a2",text:"Caminhar em superfície plana",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a3",text:"Caminhar sem sapatos em superfície plana",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a4",text:"Subir ladeiras",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a5",text:"Descer ladeiras",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a6",text:"Subir escadas",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a7",text:"Descer escadas",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a8",text:"Caminhar em superfície irregular",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a9",text:"Entrar e sair do carro",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a10",text:"Ir ao supermercado",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a11",text:"Sair da cama",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a12",text:"Tarefas domésticas leves",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a13",text:"Atividades recreativas leves",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a14",text:"Cuidados pessoais",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a15",text:"Trabalho leve a moderado",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a16",text:"Trabalho pesado",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a17",text:"Atividades recreativas moderadas (golfe, boliche)",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a18",text:"Agachar-se",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a19",text:"Torcer/girar o tornozelo",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a20",text:"Ajoelhar-se",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"a21",text:"Correr em superfície plana",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+      ]},
+      {title:"Esporte",questions:[
+        {id:"s1",text:"Correr",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"s2",text:"Saltar",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"s3",text:"Aterrissar após um salto",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"s4",text:"Iniciar e parar rapidamente",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"s5",text:"Cortar/mudar de direção",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"s6",text:"Atividades de baixo impacto",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"s7",text:"Praticar o esporte desejado",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+        {id:"s8",text:"Participar do esporte no mesmo nível que antes da lesão",options:["Sem dificuldade","Pouca dificuldade","Dificuldade moderada","Dificuldade intensa","Incapaz"],scores:[4,3,2,1,0]},
+      ]},
+    ],
+    calculate:(a)=>{
+      const avdKeys=["a1","a2","a3","a4","a5","a6","a7","a8","a9","a10","a11","a12","a13","a14","a15","a16","a17","a18","a19","a20","a21"];
+      const sKeys=["s1","s2","s3","s4","s5","s6","s7","s8"];
+      const avd=avdKeys.reduce((s,k)=>s+(a[k]??0),0);
+      const sp=sKeys.reduce((s,k)=>s+(a[k]??0),0);
+      return{avd,sport:sp,avdPct:Math.round((avd/84)*100),sportPct:Math.round((sp/32)*100)};
+    },
+    renderResult:(r)=><FAAMResult result={r}/>
+  },
+  dash:{
+    id:"dash",name:"DASH",region:"MMSS",color:C.yellow,icon:"💪",
+    description:"Disabilities of the Arm, Shoulder and Hand — incapacidade e sintomas dos membros superiores.",
+    score_info:"0–100 pts. Quanto maior, maior a incapacidade.",
+    sections:[
+      {title:"Função Física",questions:[
+        {id:"d1",text:"Abrir um frasco novo ou apertado",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d2",text:"Escrever",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d3",text:"Girar uma chave",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d4",text:"Preparar uma refeição",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d5",text:"Empurrar uma porta pesada",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d6",text:"Colocar objeto em prateleira acima da cabeça",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d7",text:"Tarefas domésticas pesadas (lavar paredes, chão)",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d8",text:"Cuidar do jardim ou quintal",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d9",text:"Arrumar a cama",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d10",text:"Carregar uma sacola de compras",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d11",text:"Carregar objeto pesado (mais de 5kg)",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d12",text:"Trocar uma lâmpada acima da cabeça",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d13",text:"Lavar ou secar o cabelo",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d14",text:"Lavar as costas",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d15",text:"Vestir um suéter",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d16",text:"Usar uma faca para cortar alimentos",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d17",text:"Atividades recreativas com pouco esforço (cartas, tricotar)",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d18",text:"Atividades recreativas com esforço no braço/ombro/mão",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d19",text:"Atividades com movimento livre do braço (frisbee, badminton)",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d20",text:"Transporte (deslocar-se de um lugar a outro)",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+        {id:"d21",text:"Atividade sexual",options:["Sem dificuldade","Pouca","Moderada","Intensa","Incapaz"],scores:[1,2,3,4,5]},
+      ]},
+      {title:"Sintomas (última semana)",questions:[
+        {id:"s1",text:"Intensidade da dor no braço, ombro ou mão",options:["Nenhuma","Leve","Moderada","Intensa","Extrema"],scores:[1,2,3,4,5]},
+        {id:"s2",text:"Dor ao realizar atividades específicas",options:["Nenhuma","Leve","Moderada","Intensa","Extrema"],scores:[1,2,3,4,5]},
+        {id:"s3",text:"Formigamento (sensação de agulhadas)",options:["Nenhum","Leve","Moderado","Intenso","Extremo"],scores:[1,2,3,4,5]},
+        {id:"s4",text:"Fraqueza no braço, ombro ou mão",options:["Nenhuma","Leve","Moderada","Intensa","Extrema"],scores:[1,2,3,4,5]},
+        {id:"s5",text:"Rigidez no braço, ombro ou mão",options:["Nenhuma","Leve","Moderada","Intensa","Extrema"],scores:[1,2,3,4,5]},
+        {id:"s6",text:"Dificuldade para dormir pela dor",options:["Nenhuma","Pouca","Moderada","Muita","Incapaz de dormir"],scores:[1,2,3,4,5]},
+        {id:"s7",text:"Sentiu-se menos capaz por causa do problema?",options:["Discordo totalmente","Discordo","Neutro","Concordo","Concordo totalmente"],scores:[1,2,3,4,5]},
+        {id:"s8",text:"Dificuldade no trabalho habitual?",options:["Nenhuma","Pouca","Moderada","Muita","Não consegui fazer"],scores:[1,2,3,4,5]},
+        {id:"s9",text:"Dificuldade no hobby/lazer habitual?",options:["Nenhuma","Pouca","Moderada","Muita","Não consegui fazer"],scores:[1,2,3,4,5]},
+      ]},
+    ],
+    calculate:(a)=>{const v=Object.values(a);const n=v.length;if(!n)return 0;return Math.round(((v.reduce((s,x)=>s+x,0)/n)-1)*25);},
+    renderResult:(r)=><SingleScore value={r} label="Escore DASH" color={C.yellow} info="0–100 pts. Quanto maior, maior a incapacidade." invert/>
+  },
+  startback:{
+    id:"startback",name:"STarT Back",region:"Coluna",color:C.red,icon:"🩻",
+    description:"STarT Back Screening Tool — triagem de prognóstico para dor lombar, classifica risco de cronificação.",
+    score_info:"Total 0–9 pts. Subescala psicossocial 0–5. Classifica: Baixo / Médio / Alto risco.",
+    sections:[
+      {title:"Últimos 14 dias",questions:[
+        {id:"q1",text:"Minha dor nas costas se espalhou para a(s) perna(s) pelo menos uma vez",options:["Concordo","Discordo"],scores:[1,0]},
+        {id:"q2",text:"Tive dor no ombro ou no pescoço pelo menos uma vez",options:["Concordo","Discordo"],scores:[1,0]},
+        {id:"q3",text:"Só tenho caminhado pequenas distâncias por causa das costas",options:["Concordo","Discordo"],scores:[1,0]},
+        {id:"q4",text:"Me vesti mais devagar do que o habitual pelas costas",options:["Concordo","Discordo"],scores:[1,0]},
+        {id:"q5",text:"Não é seguro para mim ser fisicamente ativo(a) com essa condição",options:["Concordo","Discordo"],scores:[1,0]},
+        {id:"q6",text:"Pensamentos preocupantes têm passado pela minha cabeça constantemente",options:["Concordo","Discordo"],scores:[1,0]},
+        {id:"q7",text:"Sinto que minha dor nas costas é terrível e nunca vai melhorar",options:["Concordo","Discordo"],scores:[1,0]},
+        {id:"q8",text:"Em geral, não tenho aproveitado as coisas boas da vida",options:["Concordo","Discordo"],scores:[1,0]},
+        {id:"q9",text:"A dor nas costas me incomodou nas últimas 2 semanas",options:["Nada","Pouco","Moderadamente","Muito","Extremamente"],scores:[0,0,0,0,1]},
+      ]},
+    ],
+    calculate:(a)=>{
+      const psy=["q5","q6","q7","q8","q9"];
+      const total=Object.values(a).reduce((s,v)=>s+v,0);
+      const ps=psy.reduce((s,k)=>s+(a[k]??0),0);
+      let risk="Baixo";if(total>=4&&ps>=4)risk="Alto";else if(total>=4)risk="Médio";
+      return{total,psychosocial:ps,risk};
+    },
+    renderResult:(r)=><StartBackResult result={r}/>
+  }
+};
+
+// ─── DADOS MOCK ───────────────────────────────────────────────────────────────
+const INIT_PATIENTS = [
+  {id:1,name:"Ana Silva",age:34,gender:"F",condition:"Tendinopatia patelar",evals:[{date:"15/01/2024",q:"ikdc",score:"72 pts"}]},
+  {id:2,name:"Carlos Mendes",age:52,gender:"M",condition:"Artrose de quadril",evals:[{date:"14/01/2024",q:"womac",score:"38 pts"}]},
+  {id:3,name:"Juliana Costa",age:28,gender:"F",condition:"Fasciite plantar",evals:[{date:"13/01/2024",q:"faam",score:"AVD 81% / Esp 75%"}]},
+  {id:4,name:"Roberto Lima",age:45,gender:"M",condition:"Epicondilite lateral",evals:[{date:"12/01/2024",q:"dash",score:"44 pts"}]},
+];
+
+// ─── COMPONENTES BASE ─────────────────────────────────────────────────────────
+const Logo = ({size=28}) => (
+  <div style={{display:"flex",alignItems:"center",gap:8}}>
+    <div style={{width:size,height:size,background:`linear-gradient(135deg,${C.orange},${C.orangeLight})`,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:size*.44,color:C.white}}>FQ</div>
+    <span style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:size*.62,letterSpacing:"-.5px"}}>FisioQ</span>
+  </div>
+);
+
+const Btn = ({children,onClick,variant="primary",size="md",disabled=false,full=false,style:st={}}) => {
+  const v={
+    primary:{background:`linear-gradient(135deg,${C.orange},${C.orangeLight})`,color:C.white,boxShadow:`0 4px 16px ${C.orange}44`},
+    ghost:{background:"transparent",color:C.orange,border:`1.5px solid ${C.orange}44`},
+    dark:{background:C.navyLight,color:C.white,border:`1px solid ${C.navyLight}`},
+    danger:{background:`${C.red}22`,color:C.red,border:`1px solid ${C.red}44`}
+  };
+  const s={sm:{padding:"6px 14px",fontSize:12},md:{padding:"9px 18px",fontSize:13},lg:{padding:"13px 26px",fontSize:15}};
+  return (
+    <button onClick={!disabled?onClick:undefined}
+      style={{border:"none",cursor:disabled?"not-allowed":"pointer",borderRadius:9,fontFamily:"DM Sans,sans-serif",fontWeight:600,transition:"all .18s",opacity:disabled?.45:1,width:full?"100%":"auto",...v[variant],...s[size],...st}}>
+      {children}
+    </button>
+  );
+};
+
+const Badge = ({children,color=C.orange}) => (
+  <span style={{background:`${color}20`,color,border:`1px solid ${color}44`,borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>{children}</span>
+);
+
+const Modal = ({title,onClose,children}) => (
+  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,padding:16}} onClick={onClose}>
+    <div className="si" style={{background:C.navyMid,border:`1px solid ${C.navyLight}`,borderRadius:20,padding:28,maxWidth:500,width:"100%",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <h3 style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:18}}>{title}</h3>
+        <button onClick={onClose} style={{background:"none",border:"none",color:C.gray400,cursor:"pointer",fontSize:22,lineHeight:1}}>×</button>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
+// ─── COMPONENTES DE RESULTADO ─────────────────────────────────────────────────
+const SingleScore = ({value,label,color,info,invert=false}) => (
+  <div style={{textAlign:"center"}}>
+    <div style={{fontFamily:"Syne,sans-serif",fontSize:64,fontWeight:800,color,lineHeight:1}}>{value}</div>
+    <div style={{color:C.gray400,fontSize:13,marginTop:6}}>{label}</div>
+    <div style={{background:`${color}22`,borderRadius:999,height:8,margin:"16px 0",overflow:"hidden"}}>
+      <div style={{width:`${Math.min(100,invert?100-value:value)}%`,height:"100%",background:color,borderRadius:999,transition:"width .8s ease"}}/>
+    </div>
+    <div style={{color:C.gray400,fontSize:12}}>{info}</div>
+  </div>
+);
+
+const FAAMResult = ({result}) => (
+  <div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:12}}>
+      {[{label:"AVD",value:result.avdPct,sub:`${result.avd}/84 pts`,color:C.green},{label:"Esporte",value:result.sportPct,sub:`${result.sport}/32 pts`,color:"#34D399"}].map(r=>(
+        <div key={r.label} style={{background:`${r.color}11`,border:`1px solid ${r.color}33`,borderRadius:14,padding:20,textAlign:"center"}}>
+          <div style={{fontFamily:"Syne,sans-serif",fontSize:40,fontWeight:800,color:r.color}}>{r.value}%</div>
+          <div style={{color:C.gray400,fontSize:12,marginTop:4}}>{r.label}</div>
+          <div style={{color:C.gray400,fontSize:11}}>{r.sub}</div>
+        </div>
+      ))}
+    </div>
+    <div style={{color:C.gray400,fontSize:12,textAlign:"center"}}>Quanto maior a porcentagem, melhor a função</div>
+  </div>
+);
+
+const StartBackResult = ({result}) => {
+  const riskColor = result.risk==="Baixo"?C.green:result.risk==="Médio"?C.yellow:C.red;
+  return (
+    <div style={{textAlign:"center"}}>
+      <div style={{display:"inline-block",background:`${riskColor}22`,border:`2px solid ${riskColor}`,borderRadius:16,padding:"18px 36px",marginBottom:16}}>
+        <div style={{fontFamily:"Syne,sans-serif",fontSize:30,fontWeight:800,color:riskColor}}>Risco {result.risk}</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <div style={{background:C.navyLight,borderRadius:12,padding:16}}>
+          <div style={{fontFamily:"Syne,sans-serif",fontSize:28,fontWeight:700}}>{result.total}<span style={{fontSize:14,color:C.gray400}}>/9</span></div>
+          <div style={{color:C.gray400,fontSize:12}}>Escore total</div>
+        </div>
+        <div style={{background:C.navyLight,borderRadius:12,padding:16}}>
+          <div style={{fontFamily:"Syne,sans-serif",fontSize:28,fontWeight:700}}>{result.psychosocial}<span style={{fontSize:14,color:C.gray400}}>/5</span></div>
+          <div style={{color:C.gray400,fontSize:12}}>Psicossocial</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── FORMULÁRIO DO QUESTIONÁRIO ───────────────────────────────────────────────
+const QuestionnaireForm = ({qId,patientName,onDone,onBack}) => {
+  const q = QS[qId];
+  const [answers, setAnswers] = useState({});
+  const [sec, setSec] = useState(0);
+  const allQs = q.sections.flatMap(s=>s.questions);
+  const answered = Object.keys(answers).length;
+  const section = q.sections[sec];
+  const secDone = section.questions.every(x=>answers[x.id]!==undefined);
+  const allDone = allQs.every(x=>answers[x.id]!==undefined);
+  const progress = (answered/allQs.length)*100;
+  const setA = (id,score) => setAnswers(p=>({...p,[id]:score}));
+  const result = allDone ? q.calculate(answers) : null;
+
+  if(allDone && result!==null){
+    return (
+      <div>
+        <div style={{textAlign:"center",marginBottom:24}}>
+          <div style={{fontSize:40,marginBottom:8}}>✅</div>
+          <h3 style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:20,marginBottom:4}}>Questionário concluído</h3>
+          <p style={{color:C.gray400,fontSize:13}}>{patientName} • {q.name} • {new Date().toLocaleDateString("pt-BR")}</p>
+        </div>
+        <div style={{background:C.navy,borderRadius:16,padding:24,marginBottom:20}}>
+          {q.renderResult(result)}
+        </div>
+        <div style={{background:`${q.color}11`,border:`1px solid ${q.color}22`,borderRadius:12,padding:14,marginBottom:20}}>
+          <p style={{color:q.color,fontSize:12,fontWeight:600,marginBottom:2}}>ℹ️ Interpretação</p>
+          <p style={{color:C.gray200,fontSize:12}}>{q.score_info}</p>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <Btn onClick={onBack} variant="ghost" full>← Voltar</Btn>
+          <Btn onClick={()=>onDone(result)} full>💾 Salvar resultado</Btn>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{marginBottom:18}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+          <span style={{color:q.color,fontWeight:600,fontSize:13}}>{section.title}</span>
+          <span style={{color:C.gray400,fontSize:12}}>{answered}/{allQs.length}</span>
+        </div>
+        <div style={{background:C.navyLight,borderRadius:999,height:4}}>
+          <div style={{width:`${progress}%`,height:"100%",background:q.color,borderRadius:999,transition:"width .3s"}}/>
+        </div>
+        {q.sections.length>1&&(
+          <div style={{display:"flex",gap:6,marginTop:8}}>
+            {q.sections.map((s,i)=>(
+              <div key={i} style={{height:3,flex:1,background:i<sec?q.color:i===sec?`${q.color}66`:C.navyLight,borderRadius:999}}/>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{display:"flex",flexDirection:"column",gap:12,maxHeight:"55vh",overflowY:"auto",paddingRight:4}}>
+        {section.questions.map((ques,qi)=>(
+          <div key={ques.id} style={{background:C.navy,border:`1.5px solid ${answers[ques.id]!==undefined?q.color+"55":C.navyLight}`,borderRadius:14,padding:16,transition:"border-color .2s"}}>
+            <p style={{fontSize:13,lineHeight:1.6,marginBottom:12}}>
+              <span style={{color:q.color,fontWeight:700,marginRight:6}}>{qi+1}.</span>{ques.text}
+            </p>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {ques.options.map((opt,oi)=>{
+                const sel = answers[ques.id]===ques.scores[oi];
+                return (
+                  <button key={oi} onClick={()=>setA(ques.id,ques.scores[oi])}
+                    style={{background:sel?`${q.color}22`:C.navyMid,border:`1.5px solid ${sel?q.color:C.navyLight}`,borderRadius:8,padding:"8px 14px",color:sel?q.color:C.gray200,fontSize:12,fontFamily:"DM Sans,sans-serif",cursor:"pointer",textAlign:"left",transition:"all .15s",fontWeight:sel?600:400}}>
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{display:"flex",gap:10,marginTop:16}}>
+        {sec>0&&<Btn onClick={()=>setSec(s=>s-1)} variant="ghost">←</Btn>}
+        <div style={{flex:1}}/>
+        {sec<q.sections.length-1
+          ?<Btn onClick={()=>setSec(s=>s+1)} disabled={!secDone}>Próxima seção →</Btn>
+          :<Btn disabled={!allDone} style={{opacity:allDone?1:.4}}>Ver resultado ✓</Btn>
+        }
+      </div>
+    </div>
+  );
+};
+
+// ─── PERFIL DO PACIENTE ───────────────────────────────────────────────────────
+const PatientProfile = ({patient,onBack,onSaveEval}) => {
+  const [modal, setModal] = useState(null);
+  const [selectedQ, setSelectedQ] = useState(null);
+  const [linkData, setLinkData] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const generateLink = (qId) => {
+    const token = Math.random().toString(36).slice(2,10).toUpperCase();
+    setLinkData({link:`https://fisionq.app/p/${token}?q=${qId}`,q:qId});
+  };
+
+  const copyLink = () => {
+    navigator.clipboard?.writeText(linkData.link).catch(()=>{});
+    setCopied(true); setTimeout(()=>setCopied(false),2000);
+  };
+
+  const inp = {background:C.navyLight,border:`1px solid ${C.navyLight}`,borderRadius:9,padding:"10px 14px",color:C.white,fontSize:13,fontFamily:"DM Sans,sans-serif",outline:"none",width:"100%"};
+
+  return (
+    <div style={{minHeight:"100vh",background:C.navy}}>
+      <div style={{background:C.navyMid,borderBottom:`1px solid ${C.navyLight}`,padding:"14px 20px",display:"flex",alignItems:"center",gap:12}}>
+        <button onClick={onBack} style={{background:"none",border:"none",color:C.gray400,cursor:"pointer",fontSize:22,lineHeight:1}}>←</button>
+        <Logo size={24}/>
+      </div>
+
+      <div style={{maxWidth:700,margin:"0 auto",padding:"20px 16px"}}>
+        {/* card do paciente */}
+        <div className="fu" style={{background:C.navyMid,border:`1px solid ${C.navyLight}`,borderRadius:18,padding:24,marginBottom:20}}>
+          <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:18}}>
+            <div style={{width:52,height:52,borderRadius:14,background:`${C.orange}22`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:22,color:C.orange,flexShrink:0}}>{patient.name[0]}</div>
+            <div>
+              <h2 style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:20}}>{patient.name}</h2>
+              <p style={{color:C.gray400,fontSize:13}}>{patient.age} anos • {patient.gender==="F"?"Feminino":"Masculino"} • {patient.condition}</p>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            <Btn onClick={()=>{setSelectedQ(null);setModal("apply");}}>📋 Aplicar questionário</Btn>
+            <Btn onClick={()=>{setLinkData(null);setModal("link");}} variant="dark">🔗 Gerar link para paciente</Btn>
+          </div>
+        </div>
+
+        {/* histórico */}
+        <div className="fu2">
+          <h3 style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:16,marginBottom:12}}>Histórico de Avaliações</h3>
+          {patient.evals.length===0
+            ?<div style={{background:C.navyMid,border:`1px solid ${C.navyLight}`,borderRadius:14,padding:28,textAlign:"center",color:C.gray400,fontSize:13}}>Nenhuma avaliação registrada ainda.</div>
+            :<div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {patient.evals.map((ev,i)=>{
+                const q=QS[ev.q];
+                return (
+                  <div key={i} style={{background:C.navyMid,border:`1px solid ${C.navyLight}`,borderRadius:14,padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12}}>
+                      <span style={{fontSize:22}}>{q?.icon}</span>
+                      <div>
+                        <div style={{fontWeight:600,fontSize:14}}>{q?.name}</div>
+                        <div style={{color:C.gray400,fontSize:12}}>{ev.date}</div>
+                      </div>
+                    </div>
+                    <Badge color={q?.color||C.orange}>{ev.score}</Badge>
+                  </div>
+                );
+              })}
+            </div>
+          }
+        </div>
+      </div>
+
+      {/* Modal — aplicar */}
+      {modal==="apply"&&(
+        <Modal title={selectedQ?"Aplicando: "+QS[selectedQ]?.name:"Selecionar questionário"} onClose={()=>{setModal(null);setSelectedQ(null);}}>
+          {!selectedQ
+            ?<>
+              <p style={{color:C.gray400,fontSize:13,marginBottom:16}}>Selecione o questionário para <strong style={{color:C.white}}>{patient.name}</strong>:</p>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {Object.values(QS).map(q=>(
+                  <div key={q.id} onClick={()=>setSelectedQ(q.id)}
+                    style={{background:C.navy,border:`1.5px solid ${q.color}33`,borderRadius:12,padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,transition:"border-color .2s"}}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor=q.color}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor=`${q.color}33`}>
+                    <span style={{fontSize:24}}>{q.icon}</span>
+                    <div>
+                      <div style={{fontWeight:600,fontSize:14,color:q.color}}>{q.name}</div>
+                      <div style={{color:C.gray400,fontSize:12}}>{q.region} • {q.sections.flatMap(s=>s.questions).length} questões</div>
+                    </div>
+                    <span style={{marginLeft:"auto",color:C.gray400}}>→</span>
+                  </div>
+                ))}
+              </div>
+            </>
+            :<QuestionnaireForm
+              qId={selectedQ}
+              patientName={patient.name}
+              onBack={()=>setSelectedQ(null)}
+              onDone={(result)=>{
+                onSaveEval(patient.id,selectedQ,result);
+                setModal(null);setSelectedQ(null);
+              }}
+            />
+          }
+        </Modal>
+      )}
+
+      {/* Modal — gerar link */}
+      {modal==="link"&&(
+        <Modal title="Gerar link para o paciente" onClose={()=>{setModal(null);setLinkData(null);}}>
+          {!linkData
+            ?<>
+              <p style={{color:C.gray400,fontSize:13,marginBottom:16}}>Qual questionário <strong style={{color:C.white}}>{patient.name}</strong> deve responder?</p>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {Object.values(QS).map(q=>(
+                  <div key={q.id} onClick={()=>generateLink(q.id)}
+                    style={{background:C.navy,border:`1.5px solid ${q.color}33`,borderRadius:12,padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,transition:"border-color .2s"}}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor=q.color}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor=`${q.color}33`}>
+                    <span style={{fontSize:24}}>{q.icon}</span>
+                    <div>
+                      <div style={{fontWeight:600,fontSize:14,color:q.color}}>{q.name}</div>
+                      <div style={{color:C.gray400,fontSize:12}}>{q.region}</div>
+                    </div>
+                    <span style={{marginLeft:"auto",color:C.gray400}}>→</span>
+                  </div>
+                ))}
+              </div>
+            </>
+            :<>
+              <div style={{background:`${C.green}11`,border:`1px solid ${C.green}44`,borderRadius:12,padding:16,marginBottom:16,textAlign:"center"}}>
+                <div style={{fontSize:32,marginBottom:8}}>🔗</div>
+                <p style={{color:C.green,fontWeight:600,fontSize:14,marginBottom:4}}>Link gerado com sucesso!</p>
+                <p style={{color:C.gray400,fontSize:12}}>{QS[linkData.q]?.name} • {patient.name}</p>
+              </div>
+              <div style={{background:C.navy,borderRadius:10,padding:12,marginBottom:12}}>
+                <span style={{color:C.gray400,fontSize:11,wordBreak:"break-all",fontFamily:"monospace"}}>{linkData.link}</span>
+              </div>
+              <Btn onClick={copyLink} full style={{marginBottom:12}}>{copied?"✅ Copiado!":"📋 Copiar link"}</Btn>
+              <div style={{background:`${C.yellow}11`,border:`1px solid ${C.yellow}33`,borderRadius:10,padding:12,marginBottom:12}}>
+                <p style={{color:C.yellow,fontSize:12,fontWeight:600,marginBottom:4}}>ℹ️ Como funciona</p>
+                <p style={{color:C.gray400,fontSize:12,lineHeight:1.6}}>Envie este link por WhatsApp, SMS ou e-mail. O paciente abre no celular e responde o questionário. O resultado é registrado automaticamente no seu painel.</p>
+              </div>
+              <Btn onClick={()=>setLinkData(null)} variant="ghost" full>← Gerar outro link</Btn>
+            </>
+          }
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+const Dashboard = ({role,onLogout,patients,setPatients}) => {
+  const [search, setSearch] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newP, setNewP] = useState({name:"",age:"",gender:"F",condition:""});
+
+  const filtered = patients.filter(p=>
+    p.name.toLowerCase().includes(search.toLowerCase())||
+    p.condition.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const addPatient = () => {
+    if(!newP.name.trim()) return;
+    setPatients(ps=>[...ps,{id:Date.now(),name:newP.name,age:parseInt(newP.age)||0,gender:newP.gender,condition:newP.condition,evals:[]}]);
+    setNewP({name:"",age:"",gender:"F",condition:""});
+    setShowAddModal(false);
+  };
+
+  const saveEval = (patientId,qId,result) => {
+    const scoreStr = typeof result==="object"&&result.avd!==undefined
+      ?`AVD ${result.avdPct}% / Esp ${result.sportPct}%`
+      :typeof result==="object"&&result.risk!==undefined
+      ?`Risco ${result.risk} (${result.total}/9)`
+      :`${result} pts`;
+    setPatients(ps=>ps.map(p=>p.id===patientId?{...p,evals:[{date:new Date().toLocaleDateString("pt-BR"),q:qId,score:scoreStr},...p.evals]}:p));
+    if(selectedPatient?.id===patientId) setSelectedPatient(p=>({...p,evals:[{date:new Date().toLocaleDateString("pt-BR"),q:qId,score:scoreStr},...p.evals]}));
+  };
+
+  if(selectedPatient) return <PatientProfile patient={selectedPatient} onBack={()=>setSelectedPatient(null)} onSaveEval={saveEval}/>;
+
+  const inp = {background:C.navyLight,border:`1px solid ${C.navyLight}`,borderRadius:9,padding:"10px 14px",color:C.white,fontSize:13,fontFamily:"DM Sans,sans-serif",outline:"none",width:"100%"};
+
+  return (
+    <div style={{minHeight:"100vh",background:C.navy}}>
+      <div style={{background:C.navyMid,borderBottom:`1px solid ${C.navyLight}`,padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <Logo size={26}/>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          {role==="admin"&&<Badge color={C.orange}>Admin</Badge>}
+          <Btn onClick={onLogout} variant="ghost" size="sm">Sair</Btn>
+        </div>
+      </div>
+
+      <div style={{maxWidth:860,margin:"0 auto",padding:"20px 16px"}}>
+
+        {/* stats */}
+        <div className="fu" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:12,marginBottom:24}}>
+          {[
+            {label:"Pacientes",value:patients.length,icon:"👥",color:C.orange},
+            {label:"Avaliações",value:patients.reduce((s,p)=>s+p.evals.length,0),icon:"📋",color:"#3B82F6"},
+            {label:"Questionários",value:5,icon:"📊",color:C.green},
+            ...(role==="admin"?[{label:"Profissionais",value:3,icon:"👨‍⚕️",color:C.purple}]:[]),
+          ].map(s=>(
+            <div key={s.label} style={{background:C.navyMid,border:`1px solid ${C.navyLight}`,borderRadius:14,padding:18}}>
+              <div style={{fontSize:22}}>{s.icon}</div>
+              <div style={{fontFamily:"Syne,sans-serif",fontSize:30,fontWeight:800,color:s.color,marginTop:6}}>{s.value}</div>
+              <div style={{color:C.gray400,fontSize:12,marginTop:2}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* lista de pacientes */}
+        <div className="fu2">
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,gap:10,flexWrap:"wrap"}}>
+            <h2 style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:18}}>Pacientes</h2>
+            <div style={{display:"flex",gap:10,flex:1,justifyContent:"flex-end",flexWrap:"wrap"}}>
+              <input placeholder="Buscar paciente ou condição..." value={search} onChange={e=>setSearch(e.target.value)}
+                style={{...inp,width:"auto",flex:1,maxWidth:260}}/>
+              <Btn onClick={()=>setShowAddModal(true)} size="sm">+ Novo paciente</Btn>
+            </div>
+          </div>
+
+          {filtered.length===0
+            ?<div style={{background:C.navyMid,border:`1px solid ${C.navyLight}`,borderRadius:14,padding:32,textAlign:"center",color:C.gray400}}>Nenhum paciente encontrado.</div>
+            :<div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {filtered.map(p=>(
+                <div key={p.id} onClick={()=>setSelectedPatient(p)}
+                  style={{background:C.navyMid,border:`1px solid ${C.navyLight}`,borderRadius:14,padding:"14px 18px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",transition:"all .18s",gap:12}}
+                  onMouseEnter={e=>{e.currentTarget.style.borderColor=`${C.orange}66`;e.currentTarget.style.transform="translateX(2px)"}}
+                  onMouseLeave={e=>{e.currentTarget.style.borderColor=C.navyLight;e.currentTarget.style.transform="translateX(0)"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{width:40,height:40,borderRadius:10,background:`${C.orange}22`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:17,color:C.orange,flexShrink:0}}>{p.name[0]}</div>
+                    <div>
+                      <div style={{fontWeight:600,fontSize:14}}>{p.name}</div>
+                      <div style={{color:C.gray400,fontSize:12}}>{p.age} anos • {p.condition}</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+                    {p.evals[0]&&<Badge color={QS[p.evals[0].q]?.color||C.orange}>{QS[p.evals[0].q]?.name}</Badge>}
+                    <span style={{color:C.gray400,fontSize:11}}>{p.evals.length} aval.</span>
+                    <span style={{color:C.gray400,fontSize:16}}>→</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          }
+        </div>
+
+        {/* painel admin */}
+        {role==="admin"&&(
+          <div className="fu3" style={{marginTop:24}}>
+            <h2 style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:18,marginBottom:14}}>Uso por Questionário</h2>
+            <div style={{background:C.navyMid,border:`1px solid ${C.navyLight}`,borderRadius:16,padding:22}}>
+              {Object.values(QS).map(q=>{
+                const count=patients.reduce((s,p)=>s+p.evals.filter(e=>e.q===q.id).length,0);
+                const max=Math.max(...Object.values(QS).map(qq=>patients.reduce((s,p)=>s+p.evals.filter(e=>e.q===qq.id).length,0)),1);
+                return (
+                  <div key={q.id} style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
+                    <span style={{fontSize:18,width:24}}>{q.icon}</span>
+                    <span style={{width:90,fontSize:12,color:C.gray200}}>{q.name}</span>
+                    <div style={{flex:1,background:C.navyLight,borderRadius:999,height:6}}>
+                      <div style={{width:`${(count/max)*100}%`,height:"100%",background:q.color,borderRadius:999,transition:"width .6s"}}/>
+                    </div>
+                    <span style={{color:q.color,fontWeight:700,fontSize:13,width:24,textAlign:"right"}}>{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* modal novo paciente */}
+      {showAddModal&&(
+        <Modal title="Novo paciente" onClose={()=>setShowAddModal(false)}>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <input placeholder="Nome completo *" value={newP.name} onChange={e=>setNewP(p=>({...p,name:e.target.value}))} style={inp}/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <input placeholder="Idade" type="number" value={newP.age} onChange={e=>setNewP(p=>({...p,age:e.target.value}))} style={inp}/>
+              <select value={newP.gender} onChange={e=>setNewP(p=>({...p,gender:e.target.value}))} style={{...inp,cursor:"pointer"}}>
+                <option value="F">Feminino</option>
+                <option value="M">Masculino</option>
+              </select>
+            </div>
+            <input placeholder="Condição / diagnóstico" value={newP.condition} onChange={e=>setNewP(p=>({...p,condition:e.target.value}))} style={inp}/>
+            <div style={{display:"flex",gap:10,marginTop:4}}>
+              <Btn onClick={()=>setShowAddModal(false)} variant="ghost" full>Cancelar</Btn>
+              <Btn onClick={addPatient} disabled={!newP.name.trim()} full>Cadastrar paciente</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
+const Login = ({onLogin}) => {
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [role, setRole] = useState("professional");
+  const inp = {background:C.navyLight,border:`1.5px solid ${C.navyLight}`,borderRadius:10,padding:"12px 16px",color:C.white,fontSize:14,fontFamily:"DM Sans,sans-serif",width:"100%",outline:"none"};
+  return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:`radial-gradient(ellipse at 30% 60%,${C.navyLight} 0%,${C.navy} 65%)`,padding:16}}>
+      <div className="fu" style={{background:C.navyMid,border:`1px solid ${C.navyLight}`,borderRadius:20,padding:36,width:"100%",maxWidth:400}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <Logo size={38}/>
+          <p style={{color:C.gray400,fontSize:12,marginTop:8}}>Questionários Funcionais em Fisioterapia</p>
+        </div>
+        <div style={{display:"flex",gap:6,background:C.navy,borderRadius:11,padding:4,marginBottom:22}}>
+          {[["professional","Profissional"],["admin","Admin"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setRole(v)}
+              style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",cursor:"pointer",background:role===v?C.orange:"transparent",color:role===v?C.white:C.gray400,fontWeight:600,fontSize:13,fontFamily:"DM Sans,sans-serif",transition:"all .18s"}}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <input style={inp} placeholder="E-mail" value={email} onChange={e=>setEmail(e.target.value)}/>
+          <input style={inp} placeholder="Senha" type="password" value={pass} onChange={e=>setPass(e.target.value)}/>
+          <Btn onClick={()=>onLogin(role)} size="lg" full style={{marginTop:4}}>Entrar</Btn>
+        </div>
+        <p style={{color:C.gray400,fontSize:11,textAlign:"center",marginTop:16}}>
+          Versão demo — selecione o perfil e clique em Entrar
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ─── APP ROOT ─────────────────────────────────────────────────────────────────
+const App = () => {
+  const [screen, setScreen] = useState("login");
+  const [role, setRole] = useState(null);
+  const [patients, setPatients] = useState(INIT_PATIENTS);
+  return (
+    <>
+      {screen==="login"&&<Login onLogin={r=>{setRole(r);setScreen("dashboard");}}/>}
+      {screen==="dashboard"&&<Dashboard role={role} onLogout={()=>{setRole(null);setScreen("login");}} patients={patients} setPatients={setPatients}/>}
+    </>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
