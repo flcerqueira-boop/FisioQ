@@ -1,5 +1,5 @@
 const CACHE = 'fisioq-v1';
-const ASSETS = ['/FisioQ/', '/FisioQ/index.html', '/FisioQ/app.js'];
+const ASSETS = ['/', '/index.html', '/app.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
